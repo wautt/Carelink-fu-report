@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device F/U Form</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#eef1f7;--bar:#fff;--ln:#cdd5e6;--warn:#e08a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151d;--bar:#1b2030;--ln:#2d3550}}
+:root[data-theme="dark"]{--bg:#12151d;--bar:#1b2030;--ln:#2d3550}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:"Segoe UI","Open Sans",Tahoma,sans-serif;color:#243c8c}
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;justify-content:center;background:var(--bar);border-bottom:1px solid var(--ln)}
+button,label.btn{background:#243c8c;color:#fff;border:0;border-radius:6px;padding:9px 14px;font:inherit;font-size:15px;cursor:pointer}
+button.alt{background:#fff;color:#243c8c;border:1px solid #243c8c}
+button:disabled{opacity:.5}
+#stat{width:100%;text-align:center;font-size:13px;color:#7a86a8}
+.wrap{padding:16px;display:flex;justify-content:center;overflow-x:auto}
+#card{width:640px;min-height:794px;flex:none;background:#fff;border:3px solid #243c8c;padding:26px 26px 18px;font-size:19px;color:#243c8c}
+#card span{white-space:nowrap}
+.r{display:flex;align-items:flex-end;gap:26px;height:44px}
+.c{display:flex;flex:1;min-width:0;align-items:flex-end;gap:8px}
+input{flex:1;min-width:0;border:0;border-bottom:1.5px solid #243c8c;background:transparent;color:#243c8c;font:inherit;font-size:17px;padding:0 2px;text-align:center;height:26px}
+input:focus{outline:0;background:#f3f6ff}input.u{border-bottom-color:var(--warn);background:#fff6e5}
+input:not(:placeholder-shown)+.un{display:none}
+.h{display:flex;justify-content:space-between;align-items:flex-end;height:58px}
+.logo{font-size:37px;font-weight:800;letter-spacing:-1px;line-height:1}
+.h .c{width:57%;flex:none}
+.type{border-bottom:1.5px solid #243c8c;padding:0 0 6px;font-weight:700;font-size:20px;margin:2px 0 10px;white-space:nowrap}
+.type i{font-style:normal;cursor:pointer;padding:0 5px;border:2px solid transparent;border-radius:14px}
+.type i.on{border-color:#243c8c}
+.g{display:grid;grid-template-columns:30fr 15.5fr 27fr 23.5fr;column-gap:8px;align-items:end;margin-top:10px}
+.g>*{min-height:38px;display:flex;align-items:flex-end}
+.g .l{white-space:nowrap;padding-left:4px}.g .hd{justify-content:center;font-size:19px}
+.g input{width:100%}
+.sec{font-weight:700;color:#111}
+.ep{margin-top:14px;border-top:1.5px solid #243c8c;padding-top:6px}
+#ep{min-height:50px;outline:0;white-space:pre-wrap;font-size:16px;line-height:1.5}
+#ep:empty:before{content:"Episode / note (พิมพ์แก้ไขได้)";opacity:.45}
+</style>
+</head>
+<body>
+<div class="bar">
+  <label class="btn">Upload PDF<input id="f" type="file" accept="application/pdf" hidden></label>
+  <button class="alt" id="clr">Clear</button>
+  <button id="ePdf">Export PDF</button>
+  <button id="ePng">Export PNG</button>
+  <button id="eTxt">Export Text</button>
+  <div id="stat">อัปโหลด PDF เพื่อกรอกอัตโนมัติ หรือพิมพ์เองได้เลย  ( - = ไม่มีค่า, ? = ไม่แน่ใจ / ช่องสีส้ม = ควรตรวจสอบ )</div>
+</div>
+<div class="wrap"><div id="card">
+  <div class="h"><div class="logo">Medtronic</div><div class="c"><span>Follow up date</span><input id="date"></div></div>
+<div class="type" id="type"></div>
+<div class="r"><div class="c"><span>Model</span><input id="model"></div><div class="c"><span>DOI</span><input id="doi"></div></div>
+<div class="r"><div class="c"><span>Mode</span><input id="mode"></div><div class="c"><span>Rate</span><input id="rate"><span>ppm</span></div></div>
+<div class="r"><div class="c"><span>Battery</span><input id="batt" placeholder=" "><span class="un">V</span></div><div class="c"><span>Est.</span><input id="est" placeholder=" "><span class="un">years</span></div></div>
+<div class="r"><div class="c"><span>Charge time(s)</span><input id="charge"></div></div>
+<div class="g" id="grid"></div>
+  <div class="ep"><div contenteditable id="ep"></div></div>
+</div></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const $=id=>document.getElementById(id);
+const TYPES=["Pacemaker","ICD","CRT","CRT-D"];
+const ROWS=[["pacing","Pacing(%)"],["sens","Sensing(mV)"],["imp","Impedance(Ω)"],["defib","ICD Defib/SVC"],["thr","Threshold(V)"],["at","at(ms)"],["-","Setting"],["amp","Amplitude(V)"],["pw","Pulse width(ms)"],["sensi","Sensitivity(mV)"]];
+const COLS=["A","RV","LV"];
+const SIMPLE=["date","model","doi","mode","rate","batt","est","charge"];
+
+// ---------- build UI ----------
+$("type").innerHTML=TYPES.map(t=>`<i data-t="${t}">${t}</i>`).join("<b>/</b>")+" F/U";
+$("type").onclick=e=>{if(e.target.dataset.t){e.target.classList.toggle("on");[...$("type").children].forEach(x=>x!==e.target&&x.classList&&x.classList.remove("on"))}};
+let g='<div class="l">Chamber</div>'+COLS.map(c=>`<div class="hd">${c}</div>`).join("");
+ROWS.forEach(([k,l])=>{
+  if(k==="-"){g+=`<div class="l sec">${l}</div><div></div><div></div><div></div>`;return}
+  g+=`<div class="l">${l}</div>`+COLS.map(c=>`<input id="${k}_${c}">`).join("");
+});
+$("grid").innerHTML=g;
+const allInputs=()=>[...document.querySelectorAll("#card input")];
+document.addEventListener("input",e=>{if(e.target.tagName==="INPUT")e.target.classList.remove("u")});
+
+function setV(id,v,unsure){const el=$(id);el.value=v;el.classList.toggle("u",!!unsure||v==="?"||/\?$/.test(v))}
+function setType(t){[...$("type").children].forEach(x=>x.classList&&x.classList.toggle("on",x.dataset.t===t))}
+function getType(){const x=$("type").querySelector(".on");return x?x.dataset.t:""}
+
+// ---------- PDF text ----------
+async function pdfText(file){
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+  let out=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const c=await (await pdf.getPage(p)).getTextContent(),rows={};
+    c.items.forEach(i=>{const y=Math.round(i.transform[5]/3);(rows[y]=rows[y]||[]).push(i)});
+    Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>out.push(rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(" ").replace(/\s+/g," ").trim()));
+  }
+  return out.join("\n");
+}
+
+// ---------- extraction ----------
+const M=(t,re,i=1)=>{const m=t.match(re);return m?m[i]:null};
+const NUM="([-–]|[<>]?[\\d.]+)";
+function sections(t){
+  const defs={A:/(?:Right\s+)?(?:Atrial|RA)\s+(?:Lead|Measurements?|Capture|Sensing|Pacing|Programmed|Settings?|Threshold)/gi,
+    RV:/(?:Right\s+Ventricular|RV)\s+(?:Lead|Measurements?|Capture|Sensing|Pacing|Programmed|Settings?|Threshold)/gi,
+    LV:/(?:Left\s+Ventricular|LV)\s+(?:Lead|Measurements?|Capture|Sensing|Pacing|Programmed|Settings?|Threshold)/gi};
+  const mk=[];
+  for(const c in defs)for(const m of t.matchAll(defs[c]))mk.push({c,i:m.index});
+  mk.sort((a,b)=>a.i-b.i);
+  const s={A:"",RV:"",LV:""};
+  mk.forEach((m,n)=>s[m.c]+=t.slice(m.i,n+1<mk.length?mk[n+1].i:t.length)+"\n");
+  return s;
+}
+function extract(t){
+  const r={simple:{},grid:{}};
+  const S=r.simple;
+  // type
+  const ty=M(t,/(CRT-D|CRT-P|CRT|ICD|Pacemaker)\s+Model/i);
+  if(ty){const u=ty.toUpperCase();r.type=u==="CRT-P"?"CRT":u==="PACEMAKER"?"Pacemaker":u}
+  // date
+  const dl=M(t,/Date of (?:Interrogation|Visit)\s*:?\s*([^\n]+)/i);
+  S.date=dl?(M(dl,/(\d{1,2}[-\/ ]\w{3,9}[-\/ ,]+\d{2,4}|\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4})/)||dl.trim()):"-";
+  // model
+  const lastTok=s=>(s.split(/\s+/).filter(w=>/[A-Za-z]+\d+/.test(w)).pop()||null);
+  S.model=lastTok(M(t,/Medtronic([^\n]*)/i)||"")||lastTok(M(t,/Device\s*:\s*([^\n]*)/i)||"")||"-";
+  // DOI
+  const di=M(t,/(?:Date Implanted|Implant(?:ed)?(?: Date)?)\s*:?\s*([^\n]+)/i);
+  S.doi=di?(M(di,/(\d{1,2}[-\/ ]\w{3,9}[-\/ ,]+\d{2,4}|\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4})/)||di.trim()):"-";
+  // mode / rate
+  S.mode=M(t,/\bMode\s*:?\s*([A-Z0-9]+(?:\s*<=>\s*[A-Z0-9]+)?)/)||"-";
+  const lo=M(t,/Lower Rate\s*:?\s*(\d+)/i),up=M(t,/Upper Track(?:\s*Rate)?\s*:?\s*(\d+)/i);
+  S.rate=[lo,up].filter(Boolean).join(" - ")||"-";
+  // battery
+  const bt=t.slice(Math.max(0,t.search(/Battery/i)));
+  const bv=M(bt,/Voltage\s*:?\s*([\d.]+)\s*V/i),bi=M(bt,/Impedance\s*:?\s*(\d+)\s*(?:ohms?|Ω)/i);
+  S.batt=[bv&&bv+"V",bi&&bi+" ohms"].filter(Boolean).join(" / ")||"-";
+  // est
+  const e1=t.match(/Estimated remaining longevity\s*:?\s*([\d.]+)\s*(years?|months?|yrs?|mos?)/i);
+  const e2=t.match(/Min(?:imum)?\s*:?\s*([\d.]+)\s*(years?|months?|yrs?|mos?)/i);
+  S.est=[e1&&`${e1[1]} ${e1[2]}`,e2&&`(Min ${e2[1]} ${e2[2]})`].filter(Boolean).join(" ")||"-";
+  // charge
+  const ct=t.match(/Charge time\s*:?\s*([\d.]+)\s*sec[^\n]*?Energy\s*:?\s*([\d.]+)\s*J/i);
+  S.charge=ct?`${ct[1]} s @ ${ct[2]} J`:"";
+  // pacing
+  const P=k=>parseFloat(M(t,new RegExp(k+"\\s*[:=]?\\s*<?([\\d.]+)\\s*%","i")));
+  const apvs=P("AP\\s*[-–]\\s*VS"),apvp=P("AP\\s*[-–]\\s*VP"),asvp=P("AS\\s*[-–]\\s*VP");
+  const f1=x=>Math.round(x*10)/10;
+  let pa=null,pv=null;
+  if(!isNaN(apvs)||!isNaN(apvp))pa=f1((apvs||0)+(apvp||0));
+  if(!isNaN(apvp)||!isNaN(asvp))pv=f1((apvp||0)+(asvp||0));
+  if(pa===null){const v=P("\\bAP");if(!isNaN(v))pa=v}
+  if(pv===null){const v=P("\\bVP");if(!isNaN(v))pv=v}
+  r.grid.pacing={A:pa===null?"-":pa,RV:pv===null?"-":pv,LV:"-"};
+  // chamber sections
+  const sec=sections(t),any=sec.A||sec.RV||sec.LV;
+  const per=(c,fn)=>{ if(!sec[c])return any?"-":"?"; const v=fn(sec[c],c); return v==null?"-":v };
+  const w=c=>c==="A"?"P":"R";
+  const fnSens=(s,c)=>M(s,new RegExp("In-Office\\s+"+w(c)+"\\s*Wave\\s*:?\\s*"+NUM,"i"))??M(s,new RegExp("Measured\\s+"+w(c)+"\\s*Wave\\s*:?\\s*"+NUM,"i"));
+  const fnImp=s=>M(s,/(?:Lead|Measured)\s+Impedance\s*:?\s*(\d+)/i);
+  const fnThr=s=>{const m=s.match(/(?:Measured|Capture)\s+Threshold\s*:?\s*([\d.]+)\s*V(?:\s*(?:@|at)?\s*([\d.]+)\s*ms)?/i);return m?[m[1],m[2]||"-"]:null};
+  const fnProg=s=>{const m=s.match(/Programmed\s+(?:Output|Amplitude(?:\s*\/\s*Pulse\s*width)?)\s*:?\s*([\d.]+)\s*V\s*(?:@|\/)?\s*([\d.]+)\s*ms/i);return m?[m[1],m[2]]:null};
+  for(const [k,fn] of [["sens",fnSens],["imp",fnImp],["sensi",s=>M(s,new RegExp("Programmed\\s+Sensitivity\\s*:?\\s*([\\d.]+)","i"))]]){
+    r.grid[k]={};COLS.forEach(c=>r.grid[k][c]=per(c,fn));
+  }
+  [["thr",fnThr,0],["at",fnThr,1],["amp",fnProg,0],["pw",fnProg,1]].forEach(([k,fn,i])=>{
+    r.grid[k]={};COLS.forEach(c=>r.grid[k][c]=per(c,s=>{const v=fn(s);return v?v[i]:null}));
+  });
+  const df=t.match(/Defibrillation Impedance\s*:?\s*(\d+)(?:\s*(?:ohms?|Ω))?(?:\s*\/\s*(\d+))?/i);
+  r.grid.defib={A:"-",RV:df?df[1]+(df[2]?"/"+df[2]:""):"-",LV:"-"};
+  // episodes
+  const L=[],add=(lab,re,skip0)=>{const v=M(t,re);if(v!==null&&!(skip0&&parseFloat(v)===0))L.push(`${lab} : ${v}`)};
+  add("Atrial High Rate Episode",/Atrial High Rate Episodes?\s*:?\s*(\d+)/i,true);
+  add("Ventricular High Rate Episode",/Ventricular High Rate Episodes?\s*:?\s*(\d+)/i,true);
+  if(!L.length){
+    add("VT(>4 beats)",/VT\s*\(\s*>\s*4 beats\s*\)\s*[:=]?\s*(\d+)/i,false);
+    add("Fast A&V",/Fast A\s*&\s*V\s*[:=]?\s*(\d+)/i,false);
+    add("AT/AF",/\bAT\/AF\s*[:=]?\s*(\d+)/i,false);
+    add("Time in AT/AF",/Time in AT\/AF\s*[:=]?\s*([\d.]+\s*h\/d\s*\(\s*[\d.]+\s*%\s*\))/i,false);
+  }
+  r.ep=L.join("\n");
+  return r;
+}
+function fill(r){
+  SIMPLE.forEach(k=>setV(k,r.simple[k]??"-"));
+  if(r.type)setType(r.type);
+  ROWS.forEach(([k])=>{if(k!=="-")COLS.forEach(c=>setV(`${k}_${c}`,String(r.grid[k]?.[c]??"-")))});
+  $("ep").innerText=r.ep||"";
+  // missing charge time is left blank (hidden)
+}
+
+// ---------- events ----------
+$("f").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  $("stat").textContent="กำลังอ่าน "+f.name+" ...";
+  try{
+    const t=await pdfText(f);
+    if(t.trim().length<30){$("stat").textContent="PDF นี้ไม่มี text (อาจเป็นรูปสแกน) — กรอกเองหรือใช้ PDF ต้นฉบับจากเครื่อง";return}
+    window.lastText=t;fill(extract(t));
+    $("stat").textContent="อ่านเสร็จ: ตรวจช่องสีส้ม / ? ก่อน export";
+  }catch(err){$("stat").textContent="อ่านไฟล์ไม่ได้: "+err.message}
+  e.target.value="";
+};
+$("clr").onclick=()=>{allInputs().forEach(i=>{i.value="";i.classList.remove("u")});setType("");$("ep").innerText=""};
+
+function textOut(){
+  const v=id=>$(id).value.trim();
+  const L=["Medtronic  Follow up date: "+v("date"),(getType()||"Pacemaker / ICD / CRT / CRT-D")+" F/U",
+   `Model: ${v("model")}    DOI: ${v("doi")}`,`Mode: ${v("mode")}    Rate: ${v("rate")} ppm`,
+   `Battery: ${v("batt")}    Est.: ${v("est")}`];
+  if(v("charge"))L.push("Charge time(s): "+v("charge"));
+  L.push("","Chamber: A | RV | LV");
+  ROWS.forEach(([k,l])=>{if(k==="-")L.push("","Setting");else L.push(`${l}: `+COLS.map(c=>v(`${k}_${c}`)||"-").join(" | "))});
+  const ep=$("ep").innerText.trim();if(ep)L.push("",ep);
+  return L.join("\n");
+}
+function dl(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+const fname=()=>"FU_"+($("date").value.replace(/[^\w-]+/g,"_")||"report");
+async function canvas(){
+  const el=$("card");
+  return html2canvas(el,{scale:2,backgroundColor:"#fff",onclone:d=>{d.querySelectorAll("input.u").forEach(i=>{i.style.background="transparent";i.style.borderBottomColor="#243c8c"});d.querySelectorAll("#batt,#est").forEach(i=>{if(i.value)i.nextElementSibling.style.display="none"});const e=d.getElementById("ep");if(!e.innerText.trim())e.parentElement.remove()}});
+}
+$("eTxt").onclick=()=>dl(new Blob([textOut()],{type:"text/plain;charset=utf-8"}),fname()+".txt");
+$("ePng").onclick=async()=>{(await canvas()).toBlob(b=>dl(b,fname()+".png"))};
+$("ePdf").onclick=async()=>{
+  const c=await canvas(),{jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a5"});
+  const W=pdf.internal.pageSize.getWidth()-16,H=W*c.height/c.width;
+  pdf.addImage(c.toDataURL("image/png"),"PNG",8,8,W,H);pdf.save(fname()+".pdf");
+};
+</script>
+</body>
+</html>
