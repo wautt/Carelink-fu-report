@@ -55,6 +55,9 @@ table.f th{font-size:13px;color:var(--ac);font-weight:700;text-align:center;padd
 table.f td{padding:0}
 table.f th:first-child,table.f td:first-child{width:25%}
 table.f td:first-child{white-space:normal;font-size:12px;line-height:1.2;color:var(--mu);padding-right:2px;overflow-wrap:anywhere}
+table.f .two{display:flex;align-items:center;gap:1px}.table-two{}
+.two span{color:var(--mu);font-size:13px}
+table.f .two input{padding:8px 0}
 table.f input{text-align:center;padding:8px 1px;min-height:40px;min-width:0;text-overflow:ellipsis}
 .sub td{overflow:visible}
 .sub td{padding-top:12px!important;font-weight:700;color:var(--tx)!important;font-size:13px!important}
@@ -262,7 +265,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const V={};
 const pt=[['name','ชื่อ-นามสกุล','full'],['hn','HN'],['fu','Follow-up date','date']];
-const dev=[['model','Model'],['doi','DOI (วันที่ใส่)','date'],['mode','Mode'],['rate','Rate','','ppm','numeric']];
+const dev=[['model','Model'],['doi','DOI (วันที่ใส่)','date'],['mode','Mode'],['rate','Rate','','ppm','']];
 const EV=['VF','FVT','VT','NS-VT','SVT','AT','AF'];
 const evk=e=>e.replace('-','');
 const PCT=['AT','AF'];
@@ -282,6 +285,7 @@ const set=[['amp','Amplitude (V)'],['pw','Pulse width (ms)'],['sens','Sensitivit
 const measDesc=meas.map(([k,l])=>({k,l:RL[k]||l,get:c=>{
   let v=V[k+'_'+c]||'';
   if(V.thr2chk){const k2=k==='thr'?'thr2':k==='thrms'?'thrms2':null;if(k2){const v2=V[k2+'_'+c]||'';if(v2)v=v?v+'/'+v2:v2}}
+  if(k==='defib'&&c==='RV'&&V.defib2_RV)v=v?v+'/'+V.defib2_RV:V.defib2_RV;
   return v;
 }}));
 const setDesc=set.map(([k,l])=>({k,l:RL[k]||l,get:c=>V[k+'_'+c]||''}));
@@ -321,7 +325,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   if(b.dataset.q40){const z=b.dataset.q40;for(let i=1;i<=RXN;i++){V[`dzt_${z}_${i}`]='J';V[`dza_${z}_${i}`]='';setK(`dzv_${z}_${i}`,'40')}render();return}
   if(b.dataset.qfill){const z=b.dataset.qfill;for(let i=2;i<=RXN;i++){V[`dzt_${z}_${i}`]=V[`dzt_${z}_1`]||'';V[`dza_${z}_${i}`]=V[`dza_${z}_1`]||'';setK(`dzv_${z}_${i}`,V[`dzv_${z}_1`]||'')}render();return}
 });
-const row=(([k,l],cls)=>`<tr${cls?` class="${cls}"`:''}><td>${l}</td>${C.map(c=>`<td><input data-k="${k}_${c}" inputmode="decimal"></td>`).join('')}</tr>`);
+const row=(([k,l],cls)=>`<tr${cls?` class="${cls}"`:''}><td>${l}</td>${C.map(c=>k==='defib'&&c==='RV'?`<td><div class="two"><input data-k="defib_RV" inputmode="decimal"><span>/</span><input data-k="defib2_RV" inputmode="decimal"></div></td>`:`<td><input data-k="${k}_${c}" inputmode="decimal"></td>`).join('')}</tr>`);
+const _rt=document.querySelector('[data-k="rate"]');if(_rt)_rt.placeholder='เช่น 60-130';
 const mainRows=meas.map(m=>row(m)+(m[0]==='thrms'?meas2.map(m2=>row(m2,'x2')).join(''):'')).join('');
 $('#tbl').innerHTML=`<tr><th></th>${C.map(c=>`<th>${c}</th>`).join('')}</tr>`+mainRows+`<tr class="sub"><td colspan="4">Setting</td></tr>`+set.map(m=>row(m)).join('');
 const fd=v=>{if(!v)return'';const d=new Date(v);return isNaN(d)?v:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
@@ -332,7 +337,7 @@ function tbl(list){
   return `<table><tr><th></th>${cs.map(c=>`<th>${c}</th>`).join('')}</tr>`+
    list.filter(([k])=>cs.some(c=>V[k+'_'+c])).map(([k,l])=>`<tr><td>${l}</td>${cs.map(c=>`<td>${esc(V[k+'_'+c])||'-'}</td>`).join('')}</tr>`).join('')+`</table>`;
 }
-const DOC_CSS='.doc{font:12px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Sukhumvit Set",Thonburi,Sarabun,"Noto Sans Thai",system-ui,sans-serif;color:#1e3a8a;background:#fff;width:300px;max-width:100%;margin:0 auto}.doc .pt{font-size:11px;color:#111;display:flex;flex-direction:column;gap:1px;margin:0 0 5px 4px}.doc .rt{font-weight:700;font-size:13px;color:#111;text-align:center;margin:0 0 6px}.doc .rh{font-weight:700;color:#111;margin:0 0 3px 4px;min-height:15px}.doc .st{border:2px solid #1e3a8a;padding:5px 6px}.doc .hd{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;gap:8px}.doc .lg{font-weight:800;font-size:16px;letter-spacing:-.3px}.doc .ttl{font-weight:600;border-bottom:1px solid #1e3a8a;margin:3px 0 4px;padding-bottom:1px}.doc .ln{display:flex;gap:8px;margin:3px 0}.doc .ln>span{flex:1;display:flex;gap:4px;align-items:baseline;white-space:nowrap}.doc .u{flex:1;min-width:0;border-bottom:1px solid #1e3a8a;color:#111;font-weight:600;font-style:normal;text-align:center;min-height:15px}.doc table{width:100%;border-collapse:separate;border-spacing:3px 2px;margin:3px 0 0}.doc th{font-weight:400;text-align:center}.doc td{border-bottom:1px solid #1e3a8a;text-align:center;color:#111;font-weight:600;height:17px;padding:0}.doc th.l,.doc td.l{text-align:left;border:0;font-weight:400;color:#1e3a8a;white-space:nowrap;width:1%}.doc td.sh{text-align:left;border:0;font-weight:600;padding-top:4px}.doc .u.uf{flex:0 0 auto;min-width:18px;padding:0 3px}.doc .evo{margin:6px 4px 0}.doc .evi{margin:0 0 3px;line-height:1.6}.doc .evi .u.uf{display:inline-block;min-width:16px;line-height:1.2}.doc table.dzt{margin-top:8px;border-spacing:0;table-layout:fixed}.doc .dzt th{text-align:left;font-weight:700;color:#111;font-size:9.5px;padding:0 4px 2px 0;white-space:nowrap}.doc .dzt .bu{font-weight:400;font-size:7px}.doc .dzt td{border:0;height:auto;text-align:left;vertical-align:middle;font-weight:400;font-size:10.5px;padding:1px 4px 1px 0;white-space:nowrap;overflow:hidden}.doc .dzt td.zn{font-weight:700;font-size:11.5px}.doc .dc{display:flex;gap:4px;align-items:baseline;margin:6px 0 0}.doc .dc .u{font-weight:600}.doc .nt b{font-weight:700}.doc .evn{font-weight:800;color:#111;font-size:13px}.doc .evt{font-weight:700;color:#111;margin-bottom:2px}.doc .k{color:#111;font-weight:600}.doc .nt{color:#111;font-weight:600;margin:5px 0 0 4px;white-space:pre-wrap}';
+const DOC_CSS='.doc{font:12px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Sukhumvit Set",Thonburi,Sarabun,"Noto Sans Thai",system-ui,sans-serif;color:#1e3a8a;background:#fff;width:300px;max-width:100%;margin:0 auto}.doc .pt{font-size:11px;color:#111;display:flex;flex-direction:column;gap:1px;margin:0 0 5px 4px}.doc .rt{font-weight:700;font-size:13px;color:#111;text-align:center;margin:0 0 6px}.doc .rh{font-weight:700;color:#111;margin:0 0 3px 4px;min-height:15px}.doc .st{border:2px solid #1e3a8a;padding:5px 6px}.doc .hd{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;gap:8px}.doc .lg{font-weight:800;font-size:16px;letter-spacing:-.3px}.doc .ttl{font-weight:600;border-bottom:1px solid #1e3a8a;margin:3px 0 4px;padding-bottom:1px}.doc .ln{display:flex;gap:8px;margin:3px 0}.doc .ln>span{flex:1;display:flex;gap:4px;align-items:baseline;white-space:nowrap}.doc .u{flex:1;min-width:0;border-bottom:1px solid #1e3a8a;color:#111;font-weight:600;font-style:normal;text-align:center;min-height:15px}.doc table{width:100%;border-collapse:separate;border-spacing:3px 2px;margin:3px 0 0}.doc th{font-weight:400;text-align:center}.doc td{border-bottom:1px solid #1e3a8a;text-align:center;color:#111;font-weight:600;height:17px;padding:0}.doc th.l,.doc td.l{text-align:left;border:0;font-weight:400;color:#1e3a8a;white-space:nowrap;width:1%}.doc td.sh{text-align:left;border:0;font-weight:600;padding-top:4px}.doc .u.uf{flex:0 0 auto;min-width:18px;padding:0 3px}.doc table.dzt{margin-top:8px;border-spacing:0;table-layout:fixed}.doc .dzt th{text-align:left;font-weight:700;color:#111;font-size:9.5px;padding:0 4px 2px 0;white-space:nowrap}.doc .dzt .bu{font-weight:400;font-size:7px}.doc .dzt td{border:0;height:auto;text-align:left;vertical-align:middle;font-weight:400;font-size:10.5px;padding:1px 4px 1px 0;white-space:nowrap;overflow:hidden}.doc .dzt td.zn{font-weight:700;font-size:11.5px}.doc .dc{display:flex;gap:4px;align-items:baseline;margin:6px 0 0}.doc .dc .u{font-weight:600}.doc .nt b{font-weight:700}.doc .k{color:#111;font-weight:600}.doc .nt{display:none}.doc .pi{margin:0 0 7px;padding:0 1px 5px;border-bottom:1px solid #cdd5e4}.doc .kv{display:flex;gap:5px;align-items:baseline;margin:2px 0;font-size:11.5px;line-height:1.4}.doc .kv .k{color:#1e3a8a;font-weight:400;white-space:nowrap;flex:0 0 auto}.doc .kv .v{flex:1;min-width:0;color:#111;font-weight:600;overflow-wrap:anywhere;white-space:pre-wrap}.doc .kv .hnv{flex:0 1 auto;max-width:45%}.doc .ft{margin-top:8px;padding:7px 1px 0;border-top:1px solid #cdd5e4}.doc .ft>*+*{margin-top:6px}.doc .evo{margin:0}.doc .evt{font-weight:700;color:#111;font-size:11.5px;margin:0 0 3px}.doc .evi{display:flex;gap:7px;margin:0 0 3px;line-height:1.45;align-items:baseline}.doc .evn{flex:0 0 40px;font-weight:800;color:#111;font-size:12px}.doc .evx{flex:1;min-width:0;font-size:11px;color:#1e3a8a}.doc .vb{color:#111;font-weight:700;white-space:nowrap}';
 {const st=document.createElement('style');st.textContent=DOC_CSS;document.head.appendChild(st)}
 const repTitle=()=>V.dtype==='Pacemaker'||V.dtype==='CRT'?'ใบรายงานผลการเช็คเครื่องกระตุ้นหัวใจ':V.dtype==='ICD'||V.dtype==='CRT-D'?'ใบรายงานผลการเช็คเครื่องกระตุกหัวใจ':'';
 const devType=()=>V.dtype==='other'?(V.dother||'อื่นๆ'):(V.dtype||'');
@@ -358,11 +363,13 @@ function dzRep(){const on=dzOn();if(!on.length)return'';
   const fs=Math.max(5.5,Math.min(10.5,fit(txt)));
   return `<tr><td class="zn">${z}</td><td>${gv('dzo_'+z)||'-'}</td><td>${V['dzr_'+z]?gv('dzr_'+z):'-'}</td><td class="th" style="font-size:${fs}px">${txt?esc(txt):'-'}</td></tr>`}).join('')}</table>`}
 function evRep(){const on=evOn();if(!on.length)return'';let h='<div class="evo"><div class="evt">Event</div>';
-  on.forEach(e=>{h+=`<div class="evi"><b class="evn">${e}:</b> ${evSegs(e,v=>UF(esc(v))).join(', ')}</div>`});return h+'</div>'}
+  on.forEach(e=>{h+=`<div class="evi"><b class="evn">${e}</b><span class="evx">${evSegs(e,v=>`<b class="vb">${esc(v)}</b>`).join(', ').replace(/<\/b> (bpm|sec|min|Hrs?)/g,'</b>&nbsp;$1')||'&nbsp;'}</span></div>`});return h+'</div>'}
+const ftRep=()=>{const ev=evRep(),n=noteTxt();if(!ev&&!n&&!V.nextfu)return'';
+  return `<div class="ft">${ev}${n?`<div class="kv"><span class="k">Note:</span><span class="v">${esc(n)}</span></div>`:''}${V.nextfu?`<div class="kv"><span class="k">Next follow up:</span><span class="v">${gdv('nextfu')}</span></div>`:''}</div>`}
 const noteTxt=()=>[V.noep?'No episode':'',V.goodp?'Good parameters':'',V.notes||''].filter(Boolean).join('\n');
 const discRep=()=>V.disc?`<div class="dc"><span>Discrimination</span><i class="u" style="white-space:normal;text-align:left">${gv('disc')}</i></div>`:'';
 function body(){
-  return `<div class="doc">${repTitle()?`<div class="rt">${repTitle()}</div>`:''}${V.name||V.hn?`<div class="pt">${V.name?`<span>ชื่อ ${gv('name')}</span>`:''}${V.hn?`<span>HN ${gv('hn')}</span>`:''}</div>`:''}<div class="rh">${V.rhythm?'Present rhythm: '+gv('rhythm'):''}</div>
+  return `<div class="doc">${repTitle()?`<div class="rt">${repTitle()}</div>`:''}${(V.name||V.hn||V.rhythm)?`<div class="pi">${(V.name||V.hn)?`<div class="kv">${V.name?`<span class="k">ชื่อ:</span><span class="v">${gv('name')}</span>`:''}${V.hn?`<span class="k">HN:</span><span class="v hnv">${gv('hn')}</span>`:''}</div>`:''}${V.rhythm?`<div class="kv"><span class="k">Present rhythm:</span><span class="v">${gv('rhythm')}</span></div>`:''}</div>`:''}
 <div class="st"><div class="hd"><span class="lg">Medtronic</span><span style="display:flex;gap:4px;flex:1;max-width:60%">Follow up date ${U(gdv('fu'))}</span></div>
 <div class="ttl">${esc(devType()||'Pacemaker / ICD / CRT / CRT-D')} F/U</div>
 <div class="ln"><span>Model ${U(gv('model'))}</span><span>DOI ${U(gdv('doi'))}</span></div>
@@ -370,8 +377,7 @@ function body(){
 <div class="ln"><span>Battery ${U(gv('batt'))} V${V.lowchk&&V.lowohm?`, <b class="k">${gv('lowohm')}</b> ohms`:''}</span><span>Est. ${U(gv('est'))} ${unitWord(V.estunit,V.est)}</span></div>
 ${(V.lowchk&&V.rrt)||(V.minchk&&V.minval)?`<div class="ln"><span>${V.lowchk&&V.rrt?`RRT ${U(gv('rrt'))} V`:''}</span><span>${V.minchk&&V.minval?`Min ${U(gv('minval'))} ${unitWord(V.minunit,V.minval)}`:''}</span></div>`:''}
 <div class="ln"><span style="flex:0 0 auto">Charge time <i class="u uf">${gv('chgs')}</i> Sec @ <i class="u uf">${gv('chgj')}</i> J</span></div>
-<table><tr><th class="l">Chamber</th>${C.map(c=>`<th>${colHead(c)}</th>`).join('')}</tr>${descRows(measDesc)}${lvVecRows()}<tr><td class="sh" colspan="4">Setting</td></tr>${descRows(setDesc)}</table>${dzRep()}${discRep()}</div>${evRep()}
-${noteTxt()?`<div class="nt"><b>Note:</b> ${esc(noteTxt())}</div>`:''}${V.nextfu?`<div class="nt"><b>Next follow up:</b> ${gdv('nextfu')}</div>`:''}</div>`;
+<table><tr><th class="l">Chamber</th>${C.map(c=>`<th>${colHead(c)}</th>`).join('')}</tr>${descRows(measDesc)}${lvVecRows()}<tr><td class="sh" colspan="4">Setting</td></tr>${descRows(setDesc)}</table>${dzRep()}${discRep()}</div>${ftRep()}</div>`;
 }
 let _pt=0,_last='';
 const preview=()=>{_pt=0;const h=body();if(h!==_last){_last=h;$('#rep').innerHTML=h}};
